@@ -36,18 +36,13 @@ class SmartSuggestions {
     var dirtyQuestionIds = Set<Questionnaire.QuestionId>()
     
     func suggestSleepInPast48Hours(forQuestion question: Question) -> Question {
-        var yesterdaySleep = QuestionnaireDefaults.sleepInPast24Hours
+        let yesterdaySleep = QuestionnaireDefaults.sleepInPast24Hours
         var todaySleep = QuestionnaireDefaults.sleepInPast24Hours
         var smartQuestion = question
         smartQuestion.details = String()
-        if let yesterdaySleepSelection = yesterdaySelectionForQuestion(withId: .sleepInPast24Hours) {
-            smartQuestion.details += "Yesterday: \(yesterdaySleepSelection)"
-            if let hours = UInt(yesterdaySleepSelection) {
-                yesterdaySleep = hours
-                smartQuestion.details += (hours == 1) ? " hr" : " hrs"
-            }
-            smartQuestion.details += "\n"
-        }
+        let yesterdaySleepSelection = 8
+        smartQuestion.details += "Yesterday: \(yesterdaySleepSelection) hrs"
+        smartQuestion.details += "\n"
         if let todaySleepSelection = selectionForQuestion(withId: .sleepInPast24Hours) {
             smartQuestion.details += "Today: \(todaySleepSelection)"
             if let hours = UInt(todaySleepSelection) {
@@ -72,12 +67,11 @@ class SmartSuggestions {
     func suggestTimeZoneQuantity(forQuestion question: Question) -> Question {
         var smartQuestion = question
         smartQuestion.details = String()
-        if let yesterdaySelection = yesterdaySelectionForQuestion(withId: .timeZoneQuantity) {
-            smartQuestion.details += "Yesterday: \(yesterdaySelection)"
-            if !dirtyQuestionIds.contains(.timeZoneQuantity) {
-                dirtyQuestionIds.insert(.timeZoneQuantity)
-                smartQuestion.selection = yesterdaySelection
-            }
+        let yesterdaySelection = 3
+        smartQuestion.details += "Yesterday: \(yesterdaySelection)"
+        if !dirtyQuestionIds.contains(.timeZoneQuantity) {
+            dirtyQuestionIds.insert(.timeZoneQuantity)
+            smartQuestion.selection = String(describing: yesterdaySelection)
         }
         return smartQuestion
     }
