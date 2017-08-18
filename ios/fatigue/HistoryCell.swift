@@ -19,7 +19,7 @@ class HistoryCell: UICollectionViewCell, UITableViewDelegate, UITableViewDataSou
     }
     
     required init?(coder aDecoder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
+        super.init(coder: aDecoder)
     }
     
     weak var delegate: HomePageControllerDelegate?
@@ -114,12 +114,12 @@ class HistoryCell: UICollectionViewCell, UITableViewDelegate, UITableViewDataSou
         )
         
         let mountainOffset: CGFloat = 80
-        mountainImage.anchorWithConstantsToTop(
-            bottomAnchor,
-            left: leftAnchor,
-            right: rightAnchor,
-            topConstant: mountainOffset
-        )
+        let aspectRatio = mountainImage.image!.size.width / mountainImage.image!.size.height
+        mountainImage.translatesAutoresizingMaskIntoConstraints = false
+        mountainImage.widthAnchor.constraint(equalTo: widthAnchor).isActive = true
+        mountainImage.heightAnchor.constraint(equalTo: widthAnchor, multiplier: 1 / aspectRatio).isActive = true
+        mountainImage.centerXAnchor.constraint(equalTo: centerXAnchor).isActive = true
+        mountainImage.topAnchor.constraint(equalTo: bottomAnchor, constant: mountainOffset).isActive = true
         
         let helicopterOffset: CGFloat = 25
         helicopterImage.anchorWithConstantsToTop(
@@ -169,20 +169,59 @@ class HistoryCell: UICollectionViewCell, UITableViewDelegate, UITableViewDataSou
     }
     
     func tableView(_ tableView: UITableView, editActionsForRowAt indexPath: IndexPath) -> [UITableViewRowAction]? {
+        UserDefaults.standard.userTriedEditingRow = true
         let questionnaireResponse = questionnaireResponses[indexPath.row]
+        let cell = historyTable.cellForRow(at: indexPath)!
         let delete = UITableViewRowAction(style: .destructive, title: "Delete") { (action, indexPath) in
-            self.questionnaireResponses.remove(at: indexPath.row)
-            tableView.deleteRows(at: [indexPath], with: .automatic)
-            QuestionnaireResponse.delete(response: questionnaireResponse)
+            self.delegate?.confirmDeleteHistoryItem(questionnaireResponse, forTableView: tableView, atIndexPath: indexPath, withPopoverSourceView: cell, deleteCompletion: self.deleteHistoryTableItem)
         }
         delete.backgroundColor = .red
-        
         let share = UITableViewRowAction(style: .destructive, title: "Share") { (action, indexPath) in
-            self.delegate?.share(questionnaireResponse: questionnaireResponse)
-            tableView.setEditing(false, animated: true)
+            self.delegate?.shareHistoryItem(questionnaireResponse, withPopoverSourceView: cell, completion: { _ in
+                tableView.setEditing(false, animated: true)
+            })
         }
         share.backgroundColor = .violet
-        
         return [delete, share]
+    }
+    
+    func deleteHistoryTableItem(inTableView tableView: UITableView, atIndexPath indexPath: IndexPath) {
+        let questionnaireResponse = questionnaireResponses[indexPath.row]
+        questionnaireResponses.remove(at: indexPath.row)
+        tableView.deleteRows(at: [indexPath], with: .automatic)
+        QuestionnaireResponse.delete(response: questionnaireResponse)
+    }
+    
+    func showRowEditTutorial() {
+        if questionnaireResponses.isEmpty {
+            return
+        }
+        let translation: CGFloat = 32
+        let indexPath = IndexPath(row: 0, section: 0)
+        if let cell = historyTable.cellForRow(at: indexPath) {
+            UIView.animate(
+                withDuration: 1 / 3,
+                delay: 1 / 2,
+                options: [.allowAnimatedContent, .curveEaseInOut, .allowUserInteraction],
+                animations: {
+                    cell.frame = CGRect(x: cell.frame.origin.x - translation,
+                                        y: cell.frame.origin.y,
+                                        width: cell.bounds.width,
+                                        height: cell.bounds.height)
+                }
+            ) { finished in
+                if finished {
+                    UIView.animate(
+                        withDuration: 1 / 3,
+                        animations: {
+                            cell.frame = CGRect(x: cell.frame.origin.x + translation,
+                                                y: cell.frame.origin.y,
+                                                width: cell.bounds.width,
+                                                height: cell.bounds.height)
+                        }
+                    )
+                }
+            }
+        }
     }
 }

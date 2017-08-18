@@ -52,6 +52,11 @@ class HomePageController: UICollectionViewController, UICollectionViewDelegateFl
     
     func moveToHomePage() {
         collectionView?.scrollToItem(at: IndexPath(item: 0, section: 0), at: .centeredVertically, animated: true)
+        if let historyCell = collectionView?.visibleCells.first(where: {$0 is HistoryCell}) as? HistoryCell {
+            historyCell.scrollToTop()
+            historyCell.historyTable.isScrollEnabled = false
+            historyCell.historyTable.setEditing(false, animated: true)
+        }
     }
     
     func moveToHistoryPage() {
@@ -64,13 +69,41 @@ class HomePageController: UICollectionViewController, UICollectionViewDelegateFl
         }
     }
     
-    func share(questionnaireResponse: QuestionnaireResponse) {
+    func shareHistoryItem(_ questionnaireResponse: QuestionnaireResponse, withPopoverSourceView popoverSourceView: UIView?, completion: (() -> ())? = nil) {
         Share.share(
             questionnaireResponse: questionnaireResponse,
             inViewController: self,
+            withPopoverSourceView: popoverSourceView,
             forMFMailComposeViewControllerDelegate: self,
-            forMFMessageComposeViewControllerDelegate: self
+            forMFMessageComposeViewControllerDelegate: self,
+            completion: {
+                completion?()
+            }
         )
+    }
+    
+    func confirmDeleteHistoryItem(_ questionnaireResponse: QuestionnaireResponse, forTableView tableView: UITableView, atIndexPath indexPath: IndexPath, withPopoverSourceView popoverSourceView: UIView?, deleteCompletion: ((UITableView, IndexPath) -> ())?) {
+        let actionController = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
+        actionController.title = "Delete history item?"
+        actionController.popoverPresentationController?.permittedArrowDirections = .right
+        let deleteAction = UIAlertAction(title: "Delete", style: .destructive) { _ in
+            DispatchQueue.main.async {
+                deleteCompletion?(tableView, indexPath)
+            }
+        }
+        let cancelAction = UIAlertAction(title: "Cancel", style: .cancel) { _ in
+            DispatchQueue.main.async {
+                tableView.setEditing(false, animated: true)
+            }
+        }
+        if let sourceView = popoverSourceView {
+            actionController.popoverPresentationController?.sourceView = sourceView
+            actionController.popoverPresentationController?.sourceRect = CGRect(x: sourceView.bounds.maxX, y: sourceView.bounds.minY, width: 5, height: sourceView.bounds.height)
+        }
+        for button in [deleteAction, cancelAction] {
+            actionController.addAction(button)
+        }
+        present(actionController, animated: true)
     }
     
     func mailComposeController(_ controller: MFMailComposeViewController, didFinishWith result: MFMailComposeResult, error: Error?) {
@@ -83,14 +116,14 @@ class HomePageController: UICollectionViewController, UICollectionViewDelegateFl
     
     override func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
         if .zero == scrollView.contentOffset {
-            if let historyCell = collectionView?.visibleCells.first(where: {$0 is HistoryCell}) as? HistoryCell {
-                (historyCell as HistoryCell).scrollToTop()
-                (historyCell as HistoryCell).historyTable.isScrollEnabled = false
-            }
+            moveToHomePage()
         }
         else {
             if let historyCell = collectionView?.visibleCells.first(where: {$0 is HistoryCell}) as? HistoryCell {
-                (historyCell as HistoryCell).historyTable.isScrollEnabled = true
+                historyCell.historyTable.isScrollEnabled = true
+                if !UserDefaults.standard.userTriedEditingRow {
+                    historyCell.showRowEditTutorial()
+                }
             }
         }
     }
@@ -101,7 +134,7 @@ class HomePageController: UICollectionViewController, UICollectionViewDelegateFl
     
     override func scrollViewDidScroll(_ scrollView: UIScrollView) {
         if let historyCell = collectionView?.visibleCells.first(where: {$0 is HistoryCell}) as? HistoryCell {
-            let offset = view.frame.height - UIConstants.navigationBarHeight - UIConstants.tableViewRowHeight - 10
+            let offset = view.frame.height - UIConstants.navigationBarHeight - UIConstants.tableViewRowHeight * 3 / 2  - 10
             let index = (collectionView?.contentOffset.y)! < offset ? 0 : 1
             historyCell.animateNavigationBar(
                 toColor: cells[index] is HistoryCell ? .white : .light,
@@ -129,7 +162,7 @@ class HomePageController: UICollectionViewController, UICollectionViewDelegateFl
     func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
         switch indexPath.row {
         case 0:
-            return CGSize(width: view.frame.width, height: view.frame.height - UIConstants.navigationBarHeight - UIConstants.tableViewRowHeight)
+            return CGSize(width: view.frame.width, height: view.frame.height - UIConstants.navigationBarHeight - UIConstants.tableViewRowHeight * 3 / 2)
         default:
             return CGSize(width: view.frame.width, height: view.frame.height)
         }
